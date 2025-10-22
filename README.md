@@ -10,7 +10,7 @@ This solution provides high-quality **Text-to-Speech (TTS)** and **Voice Convers
   * **ONNX-Only Inference**: Requires only `onnxruntime` and essential utility libraries (like `librosa` for audio processing).
   * **Text-to-Speech (TTS)**: Generate speech from text, conditioned on a reference voice (voice cloning).
   * **Voice Conversion (VC)**: Convert one person's speaking voice (source) into another person's voice (target reference).
-  * **Quantized Model Option**: Uses the **Q4 quantized Language Model** (`language_model_q4.onnx`) by default, reducing the LLM component size from $\sim 2\text{GB}$ to $\sim 350\text{MB}$ for faster loading and lower memory usage.
+  * **Quantized Model Option**: Uses the **Q4 quantized Language Model** (`language_model_q4.onnx`) by default, reducing the LLM component size from 2GB to 350MB for faster loading and lower memory usage.
   * **Batch Processing**: Built-in methods for synthesizing or converting audio across multiple reference voices and configuration settings.
   * **Caching**: Models are automatically downloaded and cached from the Hugging Face Hub into a local directory (`~/.cache/chatterbox_onnx` by default).
 
