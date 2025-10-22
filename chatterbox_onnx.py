@@ -6,8 +6,8 @@ import numpy as np
 import onnxruntime
 import soundfile as sf
 from huggingface_hub import hf_hub_download
+from tokenizers import Tokenizer
 from tqdm import tqdm
-from transformers import AutoTokenizer
 
 # --- Constants ---
 S3GEN_SR = 24000
@@ -90,9 +90,18 @@ class ChatterboxOnnx:
         self.head_dim = 64
 
     def _load_tokenizer(self):
-        """Loads the AutoTokenizer from the Hugging Face model ID."""
+        """Loads the Tokenizer from the local tokenizer.json file."""
         try:
-            return AutoTokenizer.from_pretrained(self.model_id)
+            # 1. Download the tokenizer.json file
+            tokenizer_path = hf_hub_download(
+                repo_id=self.model_id,
+                filename="tokenizer.json",
+                local_dir=self.output_dir
+            )
+
+            # 2. Load the tokenizer using the dedicated tokenizers library
+            return Tokenizer.from_file(tokenizer_path)
+
         except Exception as e:
             print(f"Error loading tokenizer: {e}")
             raise
@@ -149,7 +158,9 @@ class ChatterboxOnnx:
             np.ndarray: The raw generated waveform (audio data).
         """
         # 1. Tokenize Text Input
-        input_ids = self.tokenizer(text, return_tensors="np")["input_ids"].astype(np.int64)
+        encoding = self.tokenizer.encode(text)
+        input_ids = np.array([encoding.ids], dtype=np.int64)
+        #input_ids = self.tokenizer(text, return_tensors="np")["input_ids"].astype(np.int64)
 
         # Calculate position IDs for the text tokens
         position_ids = np.where(
@@ -549,7 +560,6 @@ class ChatterboxOnnx:
         print("====================================================\n")
 
 
-
 if __name__ == "__main__":
     # Note: The first run will download and cache all model files (approx. 5GB).
 
@@ -560,7 +570,7 @@ if __name__ == "__main__":
     synthesizer.debug_info()
 
     default_voice_path = f"{AUDIOS}/{os.listdir(AUDIOS)[0]}"
-    target_voice_path= f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
+    target_voice_path = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
 
     text = "The quick brown fox jumps over the lazy dog, demonstrating exceptional clarity and tone."
 
@@ -583,7 +593,7 @@ if __name__ == "__main__":
 
     # Example 3: Voice clone folder of audios against folder of reference donor voices
     synthesizer.batch_voice_convert(
-        original_audios_folder=AUDIOS, # convert from this
+        original_audios_folder=AUDIOS,  # convert from this
         voices_folder=REFERENCE_VOICES,  # to this
         output_dir="vc_results",
         n_random=2
