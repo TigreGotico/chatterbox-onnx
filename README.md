@@ -21,7 +21,7 @@ This solution provides high-quality **Text-to-Speech (TTS)** and **Voice Convers
 To use this file, ensure you have the required Python packages installed.
 
 ```bash
-pip install onnxruntime librosa numpy soundfile tqdm transformers huggingface_hub
+pip install onnxruntime librosa numpy soundfile tqdm tokenizers huggingface_hub
 ```
 
 **Note on Watermarking (Optional):**
