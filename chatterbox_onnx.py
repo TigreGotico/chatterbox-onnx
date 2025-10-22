@@ -55,21 +55,23 @@ class ChatterboxOnnx:
     Chatterbox ONNX models.
     """
 
-    def __init__(self, model_id: str = "onnx-community/chatterbox-onnx",
-                 output_dir: str = "chatterbox_cache"):
+    def __init__(self, quantized: bool = True,
+                 cache_dir: str = os.path.expanduser("~/.cache/chatterbox_onnx")):
         """
         Initializes the synthesizer, downloads models, and creates ONNX sessions.
 
         Args:
-            model_id: The Hugging Face model ID for Chatterbox.
-            output_dir: Local directory to cache the downloaded ONNX files.
+            quantized: if True use Q4 quantized version of language model (350MB vs 2GB)
+            cache_dir: Local directory to cache the downloaded ONNX files.
         """
-        self.model_id = model_id
-        self.output_dir = output_dir
+        self.quantized = quantized
+        self.model_id = "onnx-community/chatterbox-onnx"
+        self.output_dir = cache_dir
+
         self.repetition_penalty = 1.2
         self.repetition_processor = RepetitionPenaltyLogitsProcessor(penalty=self.repetition_penalty)
 
-        print(f"Initializing ChatterboxSynthesizer. Model files will be cached in '{output_dir}'...")
+        print(f"Initializing ChatterboxSynthesizer. Model files will be cached in '{cache_dir}'...")
 
         # Create output directory if it doesn't exist
         os.makedirs(os.path.join(self.output_dir, 'onnx'), exist_ok=True)
@@ -101,20 +103,15 @@ class ChatterboxOnnx:
             repo_id=self.model_id,
             filename=filename,
             local_dir=self.output_dir,
-            subfolder='onnx' if '.onnx' in filename else None
+            subfolder='onnx'
         )
 
-        # Ensure the .onnx_data files (if they exist) are also downloaded
-        if filename.endswith(".onnx"):
-            try:
-                hf_hub_download(
-                    repo_id=self.model_id,
-                    filename=filename.replace(".onnx", ".onnx_data"),
-                    local_dir=self.output_dir,
-                    subfolder='onnx'
-                )
-            except:
-                pass  # .onnx_data might not exist for all files
+        hf_hub_download(
+            repo_id=self.model_id,
+            filename=filename.replace(".onnx", ".onnx_data"),
+            local_dir=self.output_dir,
+            subfolder='onnx'
+        )
 
         return onnxruntime.InferenceSession(path)
 
@@ -126,8 +123,8 @@ class ChatterboxOnnx:
         model_files = [
             "speech_encoder.onnx",  # -> speech_encoder_session
             "embed_tokens.onnx",  # -> embed_tokens_session
-            "language_model.onnx",  # -> llama_with_past_session (FIXED ORDER)
-            "conditional_decoder.onnx"  # -> cond_decoder_session (FIXED ORDER)
+            "language_model_q4.onnx" if self.quantized else "language_model.onnx",
+            "conditional_decoder.onnx"  # -> cond_decoder_session
         ]
 
         sessions = []
@@ -557,7 +554,7 @@ if __name__ == "__main__":
     # Note: The first run will download and cache all model files (approx. 5GB).
 
     AUDIOS = "/run/media/miro/endeavouros/synthww/hey_chatterbox"
-    REFERENCE_VOICES = "/run/media/dataset/not-wakeword/speech_samples"
+    REFERENCE_VOICES = "/run/media/miro/endeavouros/dataset/not-wakeword/speech_samples"
 
     synthesizer = ChatterboxOnnx()  # Initialize the synthesizer (models are loaded here)
     synthesizer.debug_info()
@@ -565,23 +562,11 @@ if __name__ == "__main__":
     default_voice_path = f"{AUDIOS}/{os.listdir(AUDIOS)[0]}"
     target_voice_path= f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
 
-    # Example 1: Voice clone
-    synthesizer.voice_convert(
-        source_audio_path=default_voice_path,
-        target_voice_path=target_voice_path,
-        output_file_name="converted_output.wav",
-    )
-    # Example 2: Voice clone folder of audios against folder of reference donor voices
-    synthesizer.batch_voice_convert(
-        original_audios_folder=AUDIOS, # convert from this
-        voices_folder=REFERENCE_VOICES,  # to this
-        output_dir="vc_results",
-        n_random=2
-    )
+    text = "The quick brown fox jumps over the lazy dog, demonstrating exceptional clarity and tone."
 
-    # Example 3: TTS
+    # Example 1: TTS
     synthesizer.synthesize(
-        text="The quick brown fox jumps over the lazy dog, demonstrating exceptional clarity and tone.",
+        text=text,
         # If target_voice_path is None, it uses a default reference audio.
         target_voice_path=None,
         exaggeration=0.7,
@@ -589,9 +574,24 @@ if __name__ == "__main__":
         apply_watermark=False,
     )
 
+    # Example 2: Voice clone
+    synthesizer.voice_convert(
+        source_audio_path=default_voice_path,
+        target_voice_path=target_voice_path,
+        output_file_name="converted_output.wav",
+    )
+
+    # Example 3: Voice clone folder of audios against folder of reference donor voices
+    synthesizer.batch_voice_convert(
+        original_audios_folder=AUDIOS, # convert from this
+        voices_folder=REFERENCE_VOICES,  # to this
+        output_dir="vc_results",
+        n_random=2
+    )
+
     # Example 4: TTS with multiple voices and exaggerations
     synthesizer.batch_synthesize(
-        text="hey chatterbox",
+        text=text,
         voice_folder_path=REFERENCE_VOICES,
         exaggeration_range=(0.3, 1.1, 0.1),
         output_dir="batch_results",
