@@ -58,12 +58,12 @@ class ChatterboxOnnx:
     def __init__(self, quantized: bool = True,
                  cache_dir: str = os.path.expanduser("~/.cache/chatterbox_onnx")):
         """
-                 Initialize the ChatterboxOnnx synthesizer and prepare tokenizer, model files, and ONNX inference sessions.
-                 
-                 Parameters:
-                     quantized (bool): If True, use the smaller Q4 quantized language model binary; otherwise use the full model.
-                     cache_dir (str): Local directory where model files and tokenizer are cached and where ONNX files are stored.
-                 """
+        Initialize the ChatterboxOnnx synthesizer and prepare tokenizer, model files, and ONNX inference sessions.
+         
+        Parameters:
+            quantized (bool): If True, use the smaller Q4 quantized language model binary; otherwise use the full model.
+            cache_dir (str): Local directory where model files and tokenizer are cached and where ONNX files are stored.
+        """
         self.quantized = quantized
         self.model_id = "onnx-community/chatterbox-onnx"
         self.output_dir = cache_dir
@@ -163,22 +163,22 @@ class ChatterboxOnnx:
                            speech_tokens=None):
 
         """
-                           Generate a waveform conditioned on text and speaker embeddings, optionally generating missing speech tokens.
-                           
-                           Parameters:
-                               text (str): Input text prompt used for token generation when `speech_tokens` is not provided.
-                               cond_emb (np.ndarray): Conditional embedding tensor produced by the speech encoder to prepend to token embeddings.
-                               prompt_token (np.ndarray): Token sequence to prepend to generated speech tokens (already shaped for batching).
-                               ref_x_vector (np.ndarray): Speaker embedding(s) used by the conditional decoder.
-                               prompt_feat (np.ndarray): Speaker feature tensor used by the conditional decoder.
-                               max_new_tokens (int): Maximum number of speech tokens to generate when `speech_tokens` is not provided.
-                               exaggeration (float): Scalar controlling prosody/exaggeration applied to token embeddings.
-                               speech_tokens (optional, np.ndarray): Precomputed speech token sequence to bypass token generation; if None, tokens are generated from `text`.
-                           
-                           Returns:
-                               np.ndarray: 1-D waveform array (float32) sampled at 24000 Hz.
-                           """
-                           if speech_tokens is None:
+         Generate a waveform conditioned on text and speaker embeddings, optionally generating missing speech tokens.
+       
+         Parameters:
+            text (str): Input text prompt used for token generation when `speech_tokens` is not provided.
+            cond_emb (np.ndarray): Conditional embedding tensor produced by the speech encoder to prepend to token embeddings.
+            prompt_token (np.ndarray): Token sequence to prepend to generated speech tokens (already shaped for batching).
+            ref_x_vector (np.ndarray): Speaker embedding(s) used by the conditional decoder.
+            prompt_feat (np.ndarray): Speaker feature tensor used by the conditional decoder.
+            max_new_tokens (int): Maximum number of speech tokens to generate when `speech_tokens` is not provided.
+            exaggeration (float): Scalar controlling prosody/exaggeration applied to token embeddings.
+            speech_tokens (optional, np.ndarray): Precomputed speech token sequence to bypass token generation; if None, tokens are generated from `text`.
+       
+         Returns:
+            np.ndarray: 1-D waveform array (float32) sampled at 24000 Hz.
+        """                        
+        if speech_tokens is None:
             # 1. Tokenize Text Input
             encoding = self.tokenizer.encode(text)
             input_ids = np.array([encoding.ids], dtype=np.int64)
@@ -330,19 +330,19 @@ class ChatterboxOnnx:
             apply_watermark=False
     ):
         """
-            Convert a source audio file to sound like a target (reference) voice and save the converted audio.
-            
-            Parameters:
-                source_audio_path (str): Path to the source audio file to be converted.
-                target_voice_path (str): Path to the reference audio file whose voice characteristics will be applied.
-                output_file_name (str): Filename (or path) where the converted audio will be written.
-                exaggeration (float): Factor controlling how strongly the target voice characteristics are applied.
-                max_new_tokens (int): Maximum number of speech tokens to generate during waveform synthesis.
-                apply_watermark (bool): If True, apply an audio watermark to the output when possible.
-            
-            Returns:
-                output_path (str): Path to the saved converted audio file.
-            """
+        Convert a source audio file to sound like a target (reference) voice and save the converted audio.
+        
+        Parameters:
+            source_audio_path (str): Path to the source audio file to be converted.
+            target_voice_path (str): Path to the reference audio file whose voice characteristics will be applied.
+            output_file_name (str): Filename (or path) where the converted audio will be written.
+            exaggeration (float): Factor controlling how strongly the target voice characteristics are applied.
+            max_new_tokens (int): Maximum number of speech tokens to generate during waveform synthesis.
+            apply_watermark (bool): If True, apply an audio watermark to the output when possible.
+        
+        Returns:
+            output_path (str): Path to the saved converted audio file.
+        """
         print("\n--- Starting ONNX Voice Conversion ---")
         print(f"Source: {source_audio_path}\nTarget: {target_voice_path}\nOutput: {output_file_name}")
 
@@ -373,14 +373,14 @@ class ChatterboxOnnx:
             n_random: int = 2,
     ):
         """
-            Perform batch voice cloning by converting selected source WAV files to each reference voice.
-            
-            Parameters:
-                original_audios_folder (str): Path to a folder containing source .wav files to be converted.
-                voices_folder (str): Path to a folder containing reference .wav files that provide target voices.
-                output_dir (str): Directory where converted files will be written; created if it does not exist.
-                n_random (int): Number of random source files to convert for each reference voice (capped at the number of available sources).
-            """
+        Perform batch voice cloning by converting selected source WAV files to each reference voice.
+        
+        Parameters:
+            original_audios_folder (str): Path to a folder containing source .wav files to be converted.
+            voices_folder (str): Path to a folder containing reference .wav files that provide target voices.
+            output_dir (str): Directory where converted files will be written; created if it does not exist.
+            n_random (int): Number of random source files to convert for each reference voice (capped at the number of available sources).
+        """
         print(f"\n--- Starting Batch Voice Conversion ---")
         os.makedirs(output_dir, exist_ok=True)
 
@@ -422,16 +422,16 @@ class ChatterboxOnnx:
             apply_watermark: bool = False,
     ):
         """
-            Synthesize speech from text using a target voice and save the resulting WAV file.
-            
-            Parameters:
-                text (str): Text to synthesize.
-                target_voice_path (str | None): Path to a reference audio file for the target voice. If None, a default voice file is downloaded and used.
-                max_new_tokens (int): Maximum number of speech tokens to generate.
-                exaggeration (float): Controls expressiveness of the generated speech; values typically range from 0.0 (neutral) to 1.0 (highly expressive).
-                output_file_name (str): Path where the output WAV file will be written.
-                apply_watermark (bool): If True, attempt to apply an audible watermark before saving; if watermarking is unavailable, the file is saved without it.
-            """
+        Synthesize speech from text using a target voice and save the resulting WAV file.
+        
+        Parameters:
+            text (str): Text to synthesize.
+            target_voice_path (str | None): Path to a reference audio file for the target voice. If None, a default voice file is downloaded and used.
+            max_new_tokens (int): Maximum number of speech tokens to generate.
+            exaggeration (float): Controls expressiveness of the generated speech; values typically range from 0.0 (neutral) to 1.0 (highly expressive).
+            output_file_name (str): Path where the output WAV file will be written.
+            apply_watermark (bool): If True, attempt to apply an audible watermark before saving; if watermarking is unavailable, the file is saved without it.
+        """
         print("\n--- Starting Text-to-Audio Inference ---")
 
         if not target_voice_path:
@@ -459,18 +459,18 @@ class ChatterboxOnnx:
             apply_watermark: bool = False,
     ):
         """
-            Perform batch text-to-speech synthesis using multiple reference voices and a range of exaggeration values.
-            
-            Parameters:
-                text (str): The text to synthesize for every reference voice and exaggeration setting.
-                voice_folder_path (str): Path to a directory containing reference `.wav` files to use as target voices.
-                exaggeration_range (tuple[float, float, float]): `(start, stop, step)` defining exaggeration values to test.
-                    If `step > 0` and `start <= stop`, values from `start` to `stop` (inclusive, stepped by `step`) are used;
-                    otherwise only `start` is used.
-                max_new_tokens (int): Maximum number of speech tokens to generate per synthesis pass.
-                output_dir (str): Directory where generated WAV files will be written; created if it does not exist.
-                apply_watermark (bool): If True, attempts to apply an audible watermark using the `perth` package before saving.
-            """
+        Perform batch text-to-speech synthesis using multiple reference voices and a range of exaggeration values.
+        
+        Parameters:
+            text (str): The text to synthesize for every reference voice and exaggeration setting.
+            voice_folder_path (str): Path to a directory containing reference `.wav` files to use as target voices.
+            exaggeration_range (tuple[float, float, float]): `(start, stop, step)` defining exaggeration values to test.
+                If `step > 0` and `start <= stop`, values from `start` to `stop` (inclusive, stepped by `step`) are used;
+                otherwise only `start` is used.
+            max_new_tokens (int): Maximum number of speech tokens to generate per synthesis pass.
+            output_dir (str): Directory where generated WAV files will be written; created if it does not exist.
+            apply_watermark (bool): If True, attempts to apply an audible watermark using the `perth` package before saving.
+        """
         print(f"\n--- Starting Batch Synthesis for text: '{text[:40]}...' ---")
 
         os.makedirs(output_dir, exist_ok=True)
