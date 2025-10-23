@@ -1,6 +1,5 @@
 import os
 import random
-from typing import List, Tuple
 
 import librosa
 import numpy as np
@@ -149,7 +148,7 @@ class ChatterboxOnnx:
                            cond_emb, prompt_token, ref_x_vector, prompt_feat,
                            max_new_tokens: int,
                            exaggeration: float,
-                           speech_tokens = None):
+                           speech_tokens=None):
 
         if speech_tokens is None:
             # 1. Tokenize Text Input
@@ -186,7 +185,8 @@ class ChatterboxOnnx:
 
                     # Initialize Past Key Values (Empty cache)
                     past_key_values = {
-                        f"past_key_values.{layer}.{kv}": np.zeros([batch_size, self.num_key_value_heads, 0, self.head_dim], dtype=np.float32)
+                        f"past_key_values.{layer}.{kv}": np.zeros(
+                            [batch_size, self.num_key_value_heads, 0, self.head_dim], dtype=np.float32)
                         for layer in range(self.num_hidden_layers)
                         for kv in ("key", "value")
                     }
@@ -243,35 +243,6 @@ class ChatterboxOnnx:
         return wav
 
     def embed_speaker(self, source_audio_path: str):
-        """
-        `cond_emb` — Conditional Embedding
-
-        * **Shape:** `(1, N, D)` — usually a sequence of embeddings over time.
-        * **Purpose:** This is the *context embedding* that captures high-level speech characteristics from the reference audio (intonation, rhythm, energy, etc.). It represents a time-aligned latent representation of the input audio.
-        * **Intuition:** Think of it as a compressed form of the *how* the person is speaking — pacing, tone, and general style — rather than the *what* they’re saying.
-        * **Usage:** During text-to-speech synthesis, this embedding is concatenated with text token embeddings so the model can condition generation on a specific speaking style or tone.
-
-        `prompt_token`
-
-        * **Shape:** `(1, T)` — a short sequence of special discrete tokens.
-        * **Purpose:** These are pseudo-tokens that act as a *starting prompt* for the conditional decoder.
-        * **Intuition:** The decoder uses these to bootstrap the generation process — similar to how an LLM might use a `[BOS]` or *start-of-sequence* token. They provide an initial conditioning signal that reflects the reference speaker’s vocal identity.
-        * **Usage:** When synthesizing or converting voices, this token sequence is often prepended to new speech tokens to ensure the decoder keeps generating speech consistent with the same voice.
-
-        ref_x_vector`
-
-        * **Shape:** `(1, D)` — a single speaker embedding vector.
-        * **Purpose:** This is the compact *speaker identity embedding*, similar to an x-vector in traditional speaker verification systems.
-        * **Intuition:** It’s a numerical fingerprint of the person’s voice — capturing timbre, pitch range, and other stable vocal traits that make one voice distinct from another.
-        * **Usage:** Passed to the conditional decoder to make it generate speech in that same speaker’s voice, even if the input text is completely new.
-
-        `prompt_feat`
-
-        * **Shape:** `(1, F, D)` — frame-level acoustic features.
-        * **Purpose:** These features represent local prosodic and phonetic cues extracted from the reference audio.
-        * **Intuition:** Think of them as a fine-grained conditioning map — they carry short-term variations in energy, articulation, and local spectral details.
-        * **Usage:** Combined with `ref_x_vector` and `prompt_token` in the decoder to reconstruct realistic and consistent speech.
-        """
         # --- Extract speaker embedding from audio ---
         src_audio, _ = librosa.load(source_audio_path, sr=S3GEN_SR, res_type="soxr_hq")
         src_audio = src_audio[np.newaxis, :].astype(np.float32)
@@ -279,7 +250,7 @@ class ChatterboxOnnx:
         cond_emb, prompt_token, ref_x_vector, prompt_feat = self.speech_encoder_session.run(None, tgt_cond)
         return cond_emb, prompt_token, ref_x_vector, prompt_feat
 
-    def _watermark_and_save(self, wav, output_file_name:str, apply_watermark=False):
+    def _watermark_and_save(self, wav, output_file_name: str, apply_watermark=False):
 
         # 3. Optional: Apply Watermark
         if apply_watermark:
@@ -296,7 +267,6 @@ class ChatterboxOnnx:
         sf.write(output_file_name, wav, S3GEN_SR)
         print(f"\nSuccessfully saved generated audio to: {output_file_name}")
         return output_file_name
-
 
     def voice_convert(
             self,
@@ -325,7 +295,6 @@ class ChatterboxOnnx:
         # --- Tokenize the source speech ---
         _, src_tokens, _, _ = self.embed_speaker(source_audio_path)
 
-
         # Prepend target prompt token to source tokens for conditioning
         speech_tokens = np.concatenate([prompt_token, src_tokens], axis=1)
 
@@ -338,7 +307,6 @@ class ChatterboxOnnx:
                                       exaggeration=exaggeration,
                                       speech_tokens=speech_tokens)
         return self._watermark_and_save(wav, output_file_name, apply_watermark)
-
 
     def batch_voice_convert(
             self,
@@ -385,7 +353,7 @@ class ChatterboxOnnx:
     def synthesize(
             self,
             text: str,
-            target_voice_path: str = None, # TODO - allow passing embeddings directly alternatively
+            target_voice_path: str = None,  # TODO - allow passing embeddings directly alternatively
             max_new_tokens: int = 512,
             exaggeration: float = 0.5,
             output_file_name: str = "output.wav",
@@ -419,7 +387,6 @@ class ChatterboxOnnx:
                                       cond_emb, prompt_token, ref_x_vector, prompt_feat,
                                       max_new_tokens, exaggeration)
         self._watermark_and_save(wav, output_file_name, apply_watermark)
-
 
     def batch_synthesize(
             self,
