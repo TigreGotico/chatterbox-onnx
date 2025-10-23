@@ -58,11 +58,11 @@ class ChatterboxOnnx:
     def __init__(self, quantized: bool = True,
                  cache_dir: str = os.path.expanduser("~/.cache/chatterbox_onnx")):
         """
-        Initializes the synthesizer, downloads models, and creates ONNX sessions.
+        Initialize the ChatterboxOnnx synthesizer and prepare tokenizer, model files, and ONNX inference sessions.
 
-        Args:
-            quantized: if True use Q4 quantized version of language model (350MB vs 2GB)
-            cache_dir: Local directory to cache the downloaded ONNX files.
+        Parameters:
+            quantized (bool): If True, use the smaller Q4 quantized language model binary; otherwise use the full model.
+            cache_dir (str): Local directory where model files and tokenizer are cached and where ONNX files are stored.
         """
         self.quantized = quantized
         self.model_id = "onnx-community/chatterbox-onnx"
@@ -85,12 +85,20 @@ class ChatterboxOnnx:
             self.llama_with_past_session, \
             self.cond_decoder_session = self._load_models()
 
+        # These parameters should match the LLM's architecture
         self.num_hidden_layers = 30
         self.num_key_value_heads = 16
         self.head_dim = 64
 
-    def _load_tokenizer(self):
-        """Loads the Tokenizer from the local tokenizer.json file."""
+    def _load_tokenizer(self) -> Tokenizer:
+        """
+        Load the model's tokenizer.json from the Hugging Face Hub and return a Tokenizer instance.
+
+        Downloads the tokenizer.json for the configured model into the instance's output directory and constructs a Tokenizer from that file.
+
+        Returns:
+            Tokenizer: The Tokenizer loaded from the downloaded tokenizer.json.
+        """
         try:
             # 1. Download the tokenizer.json file
             tokenizer_path = hf_hub_download(
@@ -126,8 +134,13 @@ class ChatterboxOnnx:
 
     def _load_models(self):
         """
-        Downloads all ONNX model files and initializes ONNX runtime sessions.
-        The order MUST match the assignment in __init__.
+        Download the Chatterbox ONNX model files in the expected order and create ONNX Runtime InferenceSession objects.
+
+        Returns:
+            sessions (list): List of onnxruntime.InferenceSession objects in the same order as model_files:
+                [speech_encoder_session, embed_tokens_session, language_model_session (quantized if enabled), cond_decoder_session].
+        Note:
+            The ordering of returned sessions matches the assignments performed in __init__ and must be preserved.
         """
         model_files = [
             "speech_encoder.onnx",  # -> speech_encoder_session
@@ -143,107 +156,107 @@ class ChatterboxOnnx:
 
         return sessions
 
-    def _generate_waveform(
-            self,
-            text: str,
-            audio_values: np.ndarray,
-            max_new_tokens: int,
-            exaggeration: float,
-    ) -> np.ndarray:
+    def _generate_waveform(self, text: str,
+                           cond_emb, prompt_token, ref_x_vector, prompt_feat,
+                           max_new_tokens: int,
+                           exaggeration: float,
+                           speech_tokens=None):
+
         """
-        Core generation loop that converts text and voice features into a waveform.
-        Assumes audio_values are already loaded and prepped (np.float32, [1, N]).
+         Generate a waveform conditioned on text and speaker embeddings, optionally generating missing speech tokens.
 
-        Returns:
-            np.ndarray: The raw generated waveform (audio data).
+         Parameters:
+            text (str): Input text prompt used for token generation when `speech_tokens` is not provided.
+            cond_emb (np.ndarray): Conditional embedding tensor produced by the speech encoder to prepend to token embeddings.
+            prompt_token (np.ndarray): Token sequence to prepend to generated speech tokens (already shaped for batching).
+            ref_x_vector (np.ndarray): Speaker embedding(s) used by the conditional decoder.
+            prompt_feat (np.ndarray): Speaker feature tensor used by the conditional decoder.
+            max_new_tokens (int): Maximum number of speech tokens to generate when `speech_tokens` is not provided.
+            exaggeration (float): Scalar controlling prosody/exaggeration applied to token embeddings.
+            speech_tokens (optional, np.ndarray): Precomputed speech token sequence to bypass token generation; if None, tokens are generated from `text`.
+
+         Returns:
+            np.ndarray: 1-D waveform array (float32) sampled at 24000 Hz.
         """
-        # 1. Tokenize Text Input
-        encoding = self.tokenizer.encode(text)
-        input_ids = np.array([encoding.ids], dtype=np.int64)
-        #input_ids = self.tokenizer(text, return_tensors="np")["input_ids"].astype(np.int64)
+        if speech_tokens is None:
+            # 1. Tokenize Text Input
+            encoding = self.tokenizer.encode(text)
+            input_ids = np.array([encoding.ids], dtype=np.int64)
 
-        # Calculate position IDs for the text tokens
-        position_ids = np.where(
-            input_ids >= START_SPEECH_TOKEN,
-            0,
-            np.arange(input_ids.shape[1])[np.newaxis, :] - 1
-        )
+            # Calculate position IDs for the text tokens
+            position_ids = np.where(
+                input_ids >= START_SPEECH_TOKEN,
+                0,
+                np.arange(input_ids.shape[1])[np.newaxis, :] - 1
+            )
 
-        ort_embed_tokens_inputs = {
-            "input_ids": input_ids,
-            "position_ids": position_ids,
-            "exaggeration": np.array([exaggeration], dtype=np.float32)
-        }
+            ort_embed_tokens_inputs = {
+                "input_ids": input_ids,
+                "position_ids": position_ids,
+                "exaggeration": np.array([exaggeration], dtype=np.float32)
+            }
 
-        generate_tokens = np.array([[START_SPEECH_TOKEN]], dtype=np.long)
+            generate_tokens = np.array([[START_SPEECH_TOKEN]], dtype=np.int64)
 
-        # --- Generation Loop using kv_cache ---
-        for i in tqdm(range(max_new_tokens), desc="Sampling Speech Tokens", dynamic_ncols=True):
+            # --- Generation Loop using kv_cache ---
+            for i in tqdm(range(max_new_tokens), desc="Sampling Speech Tokens", dynamic_ncols=True):
 
-            # --- Embed Tokens ---
-            inputs_embeds = self.embed_tokens_session.run(None, ort_embed_tokens_inputs)[0]
+                # --- Embed Tokens ---
+                inputs_embeds = self.embed_tokens_session.run(None, ort_embed_tokens_inputs)[0]
 
-            if i == 0:
-                # --- Run Speech Encoder for Context Embedding (Only on first step) ---
-                ort_speech_encoder_input = {
-                    "audio_values": audio_values,
-                }
-                speech_encoder_session = self.speech_encoder_session
-                cond_emb, prompt_token, ref_x_vector, prompt_feat = speech_encoder_session.run(None,
-                                                                                               ort_speech_encoder_input)
+                if i == 0:
+                    # Concatenate conditional embedding with text embeddings
+                    inputs_embeds = np.concatenate((cond_emb, inputs_embeds), axis=1)
 
-                # Concatenate conditional embedding with text embeddings
-                inputs_embeds = np.concatenate((cond_emb, inputs_embeds), axis=1)
+                    # Prepare LLM inputs (Attention Mask and Past Key Values)
+                    batch_size, seq_len, _ = inputs_embeds.shape
 
-                # Prepare LLM inputs (Attention Mask and Past Key Values)
-                batch_size, seq_len, _ = inputs_embeds.shape
+                    # Initialize Past Key Values (Empty cache)
+                    past_key_values = {
+                        f"past_key_values.{layer}.{kv}": np.zeros(
+                            [batch_size, self.num_key_value_heads, 0, self.head_dim], dtype=np.float32)
+                        for layer in range(self.num_hidden_layers)
+                        for kv in ("key", "value")
+                    }
+                    attention_mask = np.ones((batch_size, seq_len), dtype=np.int64)
 
-                # Initialize Past Key Values (Empty cache)
-                past_key_values = {
-                    f"past_key_values.{layer}.{kv}": np.zeros([batch_size, self.num_key_value_heads, 0, self.head_dim],
-                                                              dtype=np.float32)
-                    for layer in range(self.num_hidden_layers)
-                    for kv in ("key", "value")
-                }
-                attention_mask = np.ones((batch_size, seq_len), dtype=np.int64)
+                # --- Run Language Model (LLama) ---
+                llama_with_past_session = self.llama_with_past_session
+                logits, *present_key_values = llama_with_past_session.run(None, dict(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    **past_key_values,
+                ))
 
-            # --- Run Language Model (LLama) ---
-            llama_with_past_session = self.llama_with_past_session
-            logits, *present_key_values = llama_with_past_session.run(None, dict(
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                **past_key_values,
-            ))
+                # Process Logits
+                logits = logits[:, -1, :]  # Get logits for the last token
+                next_token_logits = self.repetition_processor(generate_tokens[:, -1:], logits)
 
-            # Process Logits
-            logits = logits[:, -1, :]  # Get logits for the last token
-            next_token_logits = self.repetition_processor(generate_tokens[:, -1:], logits)
+                # Sample next token (Greedy search: argmax)
+                next_token = np.argmax(next_token_logits, axis=-1, keepdims=True).astype(np.int64)
+                generate_tokens = np.concatenate((generate_tokens, next_token), axis=-1)
 
-            # Sample next token (Greedy search: argmax)
-            next_token = np.argmax(next_token_logits, axis=-1, keepdims=True).astype(np.int64)
-            generate_tokens = np.concatenate((generate_tokens, next_token), axis=-1)
+                # Check for stop token
+                if (next_token.flatten() == STOP_SPEECH_TOKEN).all():
+                    break
 
-            # Check for stop token
-            if (next_token.flatten() == STOP_SPEECH_TOKEN).all():
-                break
+                # Update inputs for next iteration
+                position_ids = np.full((input_ids.shape[0], 1), i + 1, dtype=np.int64)
+                ort_embed_tokens_inputs["input_ids"] = next_token
+                ort_embed_tokens_inputs["position_ids"] = position_ids
 
-            # Update inputs for next iteration
-            position_ids = np.full((input_ids.shape[0], 1), i + 1, dtype=np.int64)
-            ort_embed_tokens_inputs["input_ids"] = next_token
-            ort_embed_tokens_inputs["position_ids"] = position_ids
+                # Update Attention Mask and KV Cache
+                attention_mask = np.concatenate([attention_mask, np.ones((batch_size, 1), dtype=np.int64)], axis=1)
+                for j, key in enumerate(past_key_values):
+                    past_key_values[key] = present_key_values[j]
 
-            # Update Attention Mask and KV Cache
-            attention_mask = np.concatenate([attention_mask, np.ones((batch_size, 1), dtype=np.int64)], axis=1)
-            for j, key in enumerate(past_key_values):
-                past_key_values[key] = present_key_values[j]
+            print("Token generation complete.")
 
-        print("Token generation complete.")
-
-        # 2. Concatenate Speech Tokens and Run Conditional Decoder
-        # Remove START and STOP tokens
-        speech_tokens = generate_tokens[:, 1:-1]
-        # Prepend prompt token
-        speech_tokens = np.concatenate([prompt_token, speech_tokens], axis=1)
+            # 2. Concatenate Speech Tokens and Run Conditional Decoder
+            # Remove START and STOP tokens
+            speech_tokens = generate_tokens[:, 1:-1]
+            # Prepend prompt token
+            speech_tokens = np.concatenate([prompt_token, speech_tokens], axis=1)
 
         cond_incoder_input = {
             "speech_tokens": speech_tokens,
@@ -257,56 +270,100 @@ class ChatterboxOnnx:
 
         return wav
 
+    def embed_speaker(self, source_audio_path: str):
+        # --- Extract speaker embedding from audio ---
+        """
+        Extract speaker conditioning embeddings, prompt token, speaker embedding vector, and speaker features from a local audio file.
+
+        Parameters:
+            source_audio_path (str): Path to the source audio file to embed.
+
+        Returns:
+            cond_emb (np.ndarray): Conditioning embedding produced by the speech encoder.
+            prompt_token: Prompt token(s) returned by the speech encoder for conditioning/generation.
+            ref_x_vector (np.ndarray): Speaker embedding vector representing speaker characteristics.
+            prompt_feat (np.ndarray): Additional speaker feature descriptors used by the conditional decoder.
+        """
+        src_audio, _ = librosa.load(source_audio_path, sr=S3GEN_SR, res_type="soxr_hq")
+        src_audio = src_audio[np.newaxis, :].astype(np.float32)
+        tgt_cond = {"audio_values": src_audio}
+        cond_emb, prompt_token, ref_x_vector, prompt_feat = self.speech_encoder_session.run(None, tgt_cond)
+        return cond_emb, prompt_token, ref_x_vector, prompt_feat
+
+    def _watermark_and_save(self, wav, output_file_name: str, apply_watermark=False):
+
+        # 3. Optional: Apply Watermark
+        """
+        Optionally apply an implicit watermark to an audio waveform and save it to disk.
+
+        Parameters:
+            wav (np.ndarray): 1-D audio samples at the module sample rate (S3GEN_SR).
+            output_file_name (str): Destination file path for the saved WAV.
+            apply_watermark (bool): If True, attempt to apply an implicit watermark using the `perth` library;
+                if `perth` is not available or watermarking fails, the original audio is saved unmodified.
+
+        Returns:
+            str: The path to the saved output file (same as `output_file_name`).
+        """
+        if apply_watermark:
+            print("Applying audio watermark...")
+            try:
+                import perth
+                watermarker = perth.PerthImplicitWatermarker()
+                wav = watermarker.apply_watermark(wav, sample_rate=S3GEN_SR)
+            except ImportError:
+                print("Warning: 'resemble-perth' not installed. Watermark skipped.")
+            except Exception as e:
+                print(f"Watermarking failed: {e}")
+        # 4. Save Audio File
+        sf.write(output_file_name, wav, S3GEN_SR)
+        print(f"\nSuccessfully saved generated audio to: {output_file_name}")
+        return output_file_name
+
     def voice_convert(
             self,
             source_audio_path: str,
             target_voice_path: str,
             output_file_name: str = "converted_voice.wav",
+            exaggeration: float = 0.6,
+            max_new_tokens: int = 512,
+            apply_watermark=False
     ):
         """
-        Perform ONNX-based voice conversion using the Chatterbox ONNX models.
-        This avoids using any PyTorch models and runs fully on ONNXRuntime.
+        Convert a source audio file to sound like a target (reference) voice and save the converted audio.
 
-        Args:
-            source_audio_path: Path to the source voice audio.
-            target_voice_path: Path to the target (reference) voice.
-            output_file_name: Where to save the converted voice.
+        Parameters:
+            source_audio_path (str): Path to the source audio file to be converted.
+            target_voice_path (str): Path to the reference audio file whose voice characteristics will be applied.
+            output_file_name (str): Filename (or path) where the converted audio will be written.
+            exaggeration (float): Factor controlling how strongly the target voice characteristics are applied.
+            max_new_tokens (int): Maximum number of speech tokens to generate during waveform synthesis.
+            apply_watermark (bool): If True, apply an audio watermark to the output when possible.
+
+        Returns:
+            output_path (str): Path to the saved converted audio file.
         """
         print("\n--- Starting ONNX Voice Conversion ---")
         print(f"Source: {source_audio_path}\nTarget: {target_voice_path}\nOutput: {output_file_name}")
 
-        # Load source and target audio
-        src_audio, _ = librosa.load(source_audio_path, sr=S3GEN_SR, res_type="soxr_hq")
-        tgt_audio, _ = librosa.load(target_voice_path, sr=S3GEN_SR, res_type="soxr_hq")
-        src_audio = src_audio[np.newaxis, :].astype(np.float32)
-        tgt_audio = tgt_audio[np.newaxis, :].astype(np.float32)
-
         # --- Extract speaker embedding from target audio ---
-        tgt_cond = {"audio_values": tgt_audio}
-        cond_emb, prompt_token, ref_x_vector, prompt_feat = self.speech_encoder_session.run(None, tgt_cond)
+        cond_emb, prompt_token, ref_x_vector, prompt_feat = self.embed_speaker(target_voice_path)
 
         # --- Tokenize the source speech ---
-        src_cond = {"audio_values": src_audio}
-        _, src_tokens, _, _ = self.speech_encoder_session.run(None, src_cond)
+        _, src_tokens, _, _ = self.embed_speaker(source_audio_path)
 
         # Prepend target prompt token to source tokens for conditioning
         speech_tokens = np.concatenate([prompt_token, src_tokens], axis=1)
 
-        cond_decoder_inputs = {
-            "speech_tokens": speech_tokens,
-            "speaker_embeddings": ref_x_vector,
-            "speaker_features": prompt_feat,
-        }
-
-        # --- Run conditional decoder ---
-        print("Decoding waveform...")
-        wav = self.cond_decoder_session.run(None, cond_decoder_inputs)[0]
-        wav = np.squeeze(wav, axis=0)
-
-        # Save result
-        os.makedirs(os.path.dirname(output_file_name) or ".", exist_ok=True)
-        sf.write(output_file_name, wav, S3GEN_SR)
-        print(f"Voice conversion complete → {output_file_name}")
+        wav = self._generate_waveform(text="",
+                                      cond_emb=cond_emb,
+                                      prompt_token=src_tokens,
+                                      ref_x_vector=ref_x_vector,
+                                      prompt_feat=prompt_feat,
+                                      max_new_tokens=max_new_tokens,
+                                      exaggeration=exaggeration,
+                                      speech_tokens=speech_tokens)
+        return self._watermark_and_save(wav, output_file_name, apply_watermark)
 
     def batch_voice_convert(
             self,
@@ -316,8 +373,13 @@ class ChatterboxOnnx:
             n_random: int = 2,
     ):
         """
-        Batch voice conversion: for each reference voice, select N random voices from folder_of_voices
-        and perform cloning using ONNX pipeline.
+        Perform batch voice cloning by converting selected source WAV files to each reference voice.
+
+        Parameters:
+            original_audios_folder (str): Path to a folder containing source .wav files to be converted.
+            voices_folder (str): Path to a folder containing reference .wav files that provide target voices.
+            output_dir (str): Directory where converted files will be written; created if it does not exist.
+            n_random (int): Number of random source files to convert for each reference voice (capped at the number of available sources).
         """
         print(f"\n--- Starting Batch Voice Conversion ---")
         os.makedirs(output_dir, exist_ok=True)
@@ -353,23 +415,22 @@ class ChatterboxOnnx:
     def synthesize(
             self,
             text: str,
-            target_voice_path: str = None,
-            max_new_tokens: int = 256,
+            target_voice_path: str = None,  # TODO - allow passing embeddings directly alternatively
+            max_new_tokens: int = 512,
             exaggeration: float = 0.5,
             output_file_name: str = "output.wav",
             apply_watermark: bool = False,
     ):
         """
-        Runs the text-to-speech inference for a single voice and saves the audio.
+        Synthesize speech from text using a target voice and save the resulting WAV file.
 
-        Args:
-            text: The text to be synthesized.
-            target_voice_path: Path to the reference audio file for the target voice.
-                               If None, a default voice file is downloaded.
-            max_new_tokens: The maximum number of speech tokens to generate.
-            exaggeration: Controls the expressiveness of the generated speech (0.0 to 1.0).
-            output_file_name: The path where the output WAV file will be saved.
-            apply_watermark: If True, applies an audible watermark (requires resemble-perth).
+        Parameters:
+            text (str): Text to synthesize.
+            target_voice_path (str | None): Path to a reference audio file for the target voice. If None, a default voice file is downloaded and used.
+            max_new_tokens (int): Maximum number of speech tokens to generate.
+            exaggeration (float): Controls expressiveness of the generated speech; values typically range from 0.0 (neutral) to 1.0 (highly expressive).
+            output_file_name (str): Path where the output WAV file will be written.
+            apply_watermark (bool): If True, attempt to apply an audible watermark before saving; if watermarking is unavailable, the file is saved without it.
         """
         print("\n--- Starting Text-to-Audio Inference ---")
 
@@ -381,56 +442,34 @@ class ChatterboxOnnx:
             )
             print(f"Using default voice: {target_voice_path}")
 
-        # 1. Load Reference Audio
-        try:
-            # Use soxr_hq for high-quality resampling if needed
-            audio_values, _ = librosa.load(target_voice_path, sr=S3GEN_SR, res_type='soxr_hq')
-            audio_values = audio_values[np.newaxis, :].astype(np.float32)
-        except Exception as e:
-            print(f"Error loading target voice audio: {e}")
-            return
-
         # 2. Generate Waveform
-        wav = self._generate_waveform(text, audio_values, max_new_tokens, exaggeration)
-
-        # 3. Optional: Apply Watermark
-        if apply_watermark:
-            print("Applying audio watermark...")
-            try:
-                import perth
-                watermarker = perth.PerthImplicitWatermarker()
-                wav = watermarker.apply_watermark(wav, sample_rate=S3GEN_SR)
-            except ImportError:
-                print("Warning: 'resemble-perth' not installed. Watermark skipped.")
-            except Exception as e:
-                print(f"Watermarking failed: {e}")
-
-        # 4. Save Audio File
-        sf.write(output_file_name, wav, S3GEN_SR)
-        print(f"\nSuccessfully saved generated audio to: {output_file_name}")
+        cond_emb, prompt_token, ref_x_vector, prompt_feat = self.embed_speaker(target_voice_path)
+        wav = self._generate_waveform(text,
+                                      cond_emb, prompt_token, ref_x_vector, prompt_feat,
+                                      max_new_tokens, exaggeration)
+        self._watermark_and_save(wav, output_file_name, apply_watermark)
 
     def batch_synthesize(
             self,
             text: str,
             voice_folder_path: str,
             exaggeration_range: tuple[float, float, float] = (0.5, 0.7, 0.1),  # (start, stop, step)
-            max_new_tokens: int = 256,
+            max_new_tokens: int = 512,
             output_dir: str = "batch_output",
             apply_watermark: bool = False,
     ):
         """
-        Performs batch text-to-speech synthesis using multiple reference voices
-        and a range of exaggeration values.
+        Perform batch text-to-speech synthesis using multiple reference voices and a range of exaggeration values.
 
-        Args:
-            text: The text to be synthesized.
-            voice_folder_path: Path to the directory containing reference WAV files.
-            exaggeration_range: A tuple (start, stop, step) defining the range of
-                                exaggeration values to test. (e.g., (0.3, 0.9, 0.3) for 0.3, 0.6, 0.9)
-                                If step is 0 or range is singular, only the start value is used.
-            max_new_tokens: The maximum number of speech tokens to generate per file.
-            output_dir: The directory where all generated WAV files will be saved.
-            apply_watermark: If True, applies an audible watermark (requires resemble-perth).
+        Parameters:
+            text (str): The text to synthesize for every reference voice and exaggeration setting.
+            voice_folder_path (str): Path to a directory containing reference `.wav` files to use as target voices.
+            exaggeration_range (tuple[float, float, float]): `(start, stop, step)` defining exaggeration values to test.
+                If `step > 0` and `start <= stop`, values from `start` to `stop` (inclusive, stepped by `step`) are used;
+                otherwise only `start` is used.
+            max_new_tokens (int): Maximum number of speech tokens to generate per synthesis pass.
+            output_dir (str): Directory where generated WAV files will be written; created if it does not exist.
+            apply_watermark (bool): If True, attempts to apply an audible watermark using the `perth` package before saving.
         """
         print(f"\n--- Starting Batch Synthesis for text: '{text[:40]}...' ---")
 
@@ -473,14 +512,7 @@ class ChatterboxOnnx:
 
             print(f"\nProcessing voice: {voice_name}")
 
-            # Load reference audio once per voice file
-            try:
-                # Use soxr_hq for high-quality resampling if needed
-                audio_values, _ = librosa.load(voice_path, sr=S3GEN_SR, res_type='soxr_hq')
-                audio_values = audio_values[np.newaxis, :].astype(np.float32)
-            except Exception as e:
-                print(f"  Skipping '{voice_path}' due to load error: {e}")
-                continue
+            cond_emb, prompt_token, ref_x_vector, prompt_feat = self.embed_speaker(voice_path)
 
             for ex_val in exaggeration_values:
                 print(f"  > Generating with exaggeration={ex_val:.2f}...")
@@ -490,22 +522,10 @@ class ChatterboxOnnx:
 
                 try:
                     # Generate Waveform
-                    wav = self._generate_waveform(text, audio_values, max_new_tokens, ex_val)
-
-                    # Optional: Apply Watermark
-                    if apply_watermark:
-                        try:
-                            import perth
-                            watermarker = perth.PerthImplicitWatermarker()
-                            wav = watermarker.apply_watermark(wav, sample_rate=S3GEN_SR)
-                        except ImportError:
-                            print("  [Watermark] Warning: 'resemble-perth' not installed. Skipping.")
-                        except Exception as e:
-                            print(f"  [Watermark] Failed to apply: {e}")
-
-                    # Save Audio File
-                    sf.write(output_file_path, wav, S3GEN_SR)
-                    print(f"  > Saved to {output_name}")
+                    wav = self._generate_waveform(text,
+                                                  cond_emb, prompt_token, ref_x_vector, prompt_feat,
+                                                  max_new_tokens, ex_val)
+                    self._watermark_and_save(wav, output_file_path, apply_watermark)
 
                 except Exception as e:
                     print(f"  Error generating {output_name}: {e}")
@@ -570,7 +590,8 @@ if __name__ == "__main__":
     synthesizer.debug_info()
 
     default_voice_path = f"{AUDIOS}/{os.listdir(AUDIOS)[0]}"
-    target_voice_path = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
+    voice_a = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
+    voice_b = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[1]}"
 
     text = "The quick brown fox jumps over the lazy dog, demonstrating exceptional clarity and tone."
 
@@ -579,16 +600,21 @@ if __name__ == "__main__":
         text=text,
         # If target_voice_path is None, it uses a default reference audio.
         target_voice_path=None,
-        exaggeration=0.7,
+        exaggeration=0.5,
         output_file_name="chatterbox_output.wav",
         apply_watermark=False,
     )
 
-    # Example 2: Voice clone
+    # Example 2: Voice clone existing audio
     synthesizer.voice_convert(
         source_audio_path=default_voice_path,
-        target_voice_path=target_voice_path,
-        output_file_name="converted_output.wav",
+        target_voice_path=voice_a,
+        output_file_name="converted_output_a.wav",
+    )
+    synthesizer.voice_convert(
+        source_audio_path=default_voice_path,
+        target_voice_path=voice_b,
+        output_file_name="converted_output_b.wav",
     )
 
     # Example 3: Voice clone folder of audios against folder of reference donor voices
