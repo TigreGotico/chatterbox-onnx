@@ -196,7 +196,7 @@ class ChatterboxOnnx:
                 "exaggeration": np.array([exaggeration], dtype=np.float32)
             }
 
-            generate_tokens = np.array([[START_SPEECH_TOKEN]], dtype=np.long)
+            generate_tokens = np.array([[START_SPEECH_TOKEN]], dtype=np.int64)
 
             # --- Generation Loop using kv_cache ---
             for i in tqdm(range(max_new_tokens), desc="Sampling Speech Tokens", dynamic_ncols=True):
