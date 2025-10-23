@@ -59,7 +59,7 @@ class ChatterboxOnnx:
                  cache_dir: str = os.path.expanduser("~/.cache/chatterbox_onnx")):
         """
         Initialize the ChatterboxOnnx synthesizer and prepare tokenizer, model files, and ONNX inference sessions.
-         
+
         Parameters:
             quantized (bool): If True, use the smaller Q4 quantized language model binary; otherwise use the full model.
             cache_dir (str): Local directory where model files and tokenizer are cached and where ONNX files are stored.
@@ -93,9 +93,9 @@ class ChatterboxOnnx:
     def _load_tokenizer(self) -> Tokenizer:
         """
         Load the model's tokenizer.json from the Hugging Face Hub and return a Tokenizer instance.
-        
+
         Downloads the tokenizer.json for the configured model into the instance's output directory and constructs a Tokenizer from that file.
-        
+
         Returns:
             Tokenizer: The Tokenizer loaded from the downloaded tokenizer.json.
         """
@@ -135,7 +135,7 @@ class ChatterboxOnnx:
     def _load_models(self):
         """
         Download the Chatterbox ONNX model files in the expected order and create ONNX Runtime InferenceSession objects.
-        
+
         Returns:
             sessions (list): List of onnxruntime.InferenceSession objects in the same order as model_files:
                 [speech_encoder_session, embed_tokens_session, language_model_session (quantized if enabled), cond_decoder_session].
@@ -164,7 +164,7 @@ class ChatterboxOnnx:
 
         """
          Generate a waveform conditioned on text and speaker embeddings, optionally generating missing speech tokens.
-       
+
          Parameters:
             text (str): Input text prompt used for token generation when `speech_tokens` is not provided.
             cond_emb (np.ndarray): Conditional embedding tensor produced by the speech encoder to prepend to token embeddings.
@@ -174,10 +174,10 @@ class ChatterboxOnnx:
             max_new_tokens (int): Maximum number of speech tokens to generate when `speech_tokens` is not provided.
             exaggeration (float): Scalar controlling prosody/exaggeration applied to token embeddings.
             speech_tokens (optional, np.ndarray): Precomputed speech token sequence to bypass token generation; if None, tokens are generated from `text`.
-       
+
          Returns:
             np.ndarray: 1-D waveform array (float32) sampled at 24000 Hz.
-        """                        
+        """
         if speech_tokens is None:
             # 1. Tokenize Text Input
             encoding = self.tokenizer.encode(text)
@@ -274,10 +274,10 @@ class ChatterboxOnnx:
         # --- Extract speaker embedding from audio ---
         """
         Extract speaker conditioning embeddings, prompt token, speaker embedding vector, and speaker features from a local audio file.
-        
+
         Parameters:
             source_audio_path (str): Path to the source audio file to embed.
-        
+
         Returns:
             cond_emb (np.ndarray): Conditioning embedding produced by the speech encoder.
             prompt_token: Prompt token(s) returned by the speech encoder for conditioning/generation.
@@ -295,13 +295,13 @@ class ChatterboxOnnx:
         # 3. Optional: Apply Watermark
         """
         Optionally apply an implicit watermark to an audio waveform and save it to disk.
-        
+
         Parameters:
             wav (np.ndarray): 1-D audio samples at the module sample rate (S3GEN_SR).
             output_file_name (str): Destination file path for the saved WAV.
             apply_watermark (bool): If True, attempt to apply an implicit watermark using the `perth` library;
                 if `perth` is not available or watermarking fails, the original audio is saved unmodified.
-        
+
         Returns:
             str: The path to the saved output file (same as `output_file_name`).
         """
@@ -331,7 +331,7 @@ class ChatterboxOnnx:
     ):
         """
         Convert a source audio file to sound like a target (reference) voice and save the converted audio.
-        
+
         Parameters:
             source_audio_path (str): Path to the source audio file to be converted.
             target_voice_path (str): Path to the reference audio file whose voice characteristics will be applied.
@@ -339,7 +339,7 @@ class ChatterboxOnnx:
             exaggeration (float): Factor controlling how strongly the target voice characteristics are applied.
             max_new_tokens (int): Maximum number of speech tokens to generate during waveform synthesis.
             apply_watermark (bool): If True, apply an audio watermark to the output when possible.
-        
+
         Returns:
             output_path (str): Path to the saved converted audio file.
         """
@@ -374,7 +374,7 @@ class ChatterboxOnnx:
     ):
         """
         Perform batch voice cloning by converting selected source WAV files to each reference voice.
-        
+
         Parameters:
             original_audios_folder (str): Path to a folder containing source .wav files to be converted.
             voices_folder (str): Path to a folder containing reference .wav files that provide target voices.
@@ -423,7 +423,7 @@ class ChatterboxOnnx:
     ):
         """
         Synthesize speech from text using a target voice and save the resulting WAV file.
-        
+
         Parameters:
             text (str): Text to synthesize.
             target_voice_path (str | None): Path to a reference audio file for the target voice. If None, a default voice file is downloaded and used.
@@ -460,7 +460,7 @@ class ChatterboxOnnx:
     ):
         """
         Perform batch text-to-speech synthesis using multiple reference voices and a range of exaggeration values.
-        
+
         Parameters:
             text (str): The text to synthesize for every reference voice and exaggeration setting.
             voice_folder_path (str): Path to a directory containing reference `.wav` files to use as target voices.
@@ -590,7 +590,8 @@ if __name__ == "__main__":
     synthesizer.debug_info()
 
     default_voice_path = f"{AUDIOS}/{os.listdir(AUDIOS)[0]}"
-    target_voice_path = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
+    voice_a = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
+    voice_b = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[1]}"
 
     text = "The quick brown fox jumps over the lazy dog, demonstrating exceptional clarity and tone."
 
