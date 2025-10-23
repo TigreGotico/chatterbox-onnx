@@ -7,7 +7,6 @@ import onnxruntime
 import soundfile as sf
 from huggingface_hub import hf_hub_download
 from tokenizers import Tokenizer
-from tqdm import tqdm
 
 # --- Constants ---
 S3GEN_SR = 24000
@@ -199,7 +198,7 @@ class ChatterboxOnnx:
             generate_tokens = np.array([[START_SPEECH_TOKEN]], dtype=np.int64)
 
             # --- Generation Loop using kv_cache ---
-            for i in tqdm(range(max_new_tokens), desc="Sampling Speech Tokens", dynamic_ncols=True):
+            for i in range(max_new_tokens):
 
                 # --- Embed Tokens ---
                 inputs_embeds = self.embed_tokens_session.run(None, ort_embed_tokens_inputs)[0]
@@ -394,7 +393,7 @@ class ChatterboxOnnx:
             print("No valid .wav files found in input folders.")
             return
 
-        for ref_path in tqdm(ref_files, desc="Reference voices"):
+        for ref_path in ref_files:
             ref_name = os.path.splitext(os.path.basename(ref_path))[0]
             selected_src = random.sample(src_files, min(n_random, len(src_files)))
 
@@ -589,7 +588,7 @@ if __name__ == "__main__":
     synthesizer = ChatterboxOnnx()  # Initialize the synthesizer (models are loaded here)
     synthesizer.debug_info()
 
-    default_voice_path = f"{AUDIOS}/{os.listdir(AUDIOS)[0]}"
+    default_voice_path = "chatterbox_output.wav" # generated in step 1
     voice_a = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
     voice_b = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[1]}"
 
@@ -601,7 +600,7 @@ if __name__ == "__main__":
         # If target_voice_path is None, it uses a default reference audio.
         target_voice_path=None,
         exaggeration=0.5,
-        output_file_name="chatterbox_output.wav",
+        output_file_name=default_voice_path,
         apply_watermark=False,
     )
 

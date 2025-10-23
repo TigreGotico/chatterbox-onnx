@@ -1,0 +1,5 @@
+librosa
+numpy
+onnxruntime
+soundfile
+huggingface_hub
