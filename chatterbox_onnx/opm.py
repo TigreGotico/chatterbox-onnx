@@ -28,7 +28,7 @@ class ChatterboxTTSPlugin(TTS):
             raise ValueError(
                 "expected a .wav file path for reference voice")  # TODO - consider bundling some defaults and give them names
         voice = voice or self.config.get("target_voice_path")
-        self.engine.synthesize(utterance,
+        self.engine.synthesize(sentence,
                                target_voice_path=voice,
                                exaggeration=self.config.get("exaggeration", 0.5),
                                max_new_tokens=self.config.get("max_new_tokens", 1024),
