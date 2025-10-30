@@ -384,10 +384,9 @@ class ChatterboxOnnx:
         os.makedirs(output_dir, exist_ok=True)
 
         # Gather reference and source voices
-        src_files = [os.path.join(original_audios_folder, f) for f in os.listdir(original_audios_folder) if
-                     f.lower().endswith('.wav')]
-        ref_files = [os.path.join(voices_folder, f) for f in os.listdir(voices_folder) if
-                     f.lower().endswith('.wav')]
+        import glob
+        src_files = glob.glob(os.path.join(original_audios_folder, '**', '*.wav'), recursive=True)
+        ref_files = glob.glob(os.path.join(voices_folder, '**', '*.wav'), recursive=True)
 
         if not ref_files or not src_files:
             print("No valid .wav files found in input folders.")
@@ -577,58 +576,3 @@ class ChatterboxOnnx:
             print(f"Could not run shape check: {e}")
 
         print("====================================================\n")
-
-
-if __name__ == "__main__":
-    # Note: The first run will download and cache all model files (approx. 5GB).
-
-    AUDIOS = "/run/media/miro/endeavouros/synthww/hey_chatterbox"
-    REFERENCE_VOICES = "/run/media/miro/endeavouros/dataset/not-wakeword/speech_samples"
-
-    synthesizer = ChatterboxOnnx()  # Initialize the synthesizer (models are loaded here)
-    synthesizer.debug_info()
-
-    default_voice_path = "chatterbox_output.wav" # generated in step 1
-    voice_a = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[0]}"
-    voice_b = f"{REFERENCE_VOICES}/{os.listdir(REFERENCE_VOICES)[1]}"
-
-    text = "The quick brown fox jumps over the lazy dog, demonstrating exceptional clarity and tone."
-
-    # Example 1: TTS
-    synthesizer.synthesize(
-        text=text,
-        # If target_voice_path is None, it uses a default reference audio.
-        target_voice_path=None,
-        exaggeration=0.5,
-        output_file_name=default_voice_path,
-        apply_watermark=False,
-    )
-
-    # Example 2: Voice clone existing audio
-    synthesizer.voice_convert(
-        source_audio_path=default_voice_path,
-        target_voice_path=voice_a,
-        output_file_name="converted_output_a.wav",
-    )
-    synthesizer.voice_convert(
-        source_audio_path=default_voice_path,
-        target_voice_path=voice_b,
-        output_file_name="converted_output_b.wav",
-    )
-
-    # Example 3: Voice clone folder of audios against folder of reference donor voices
-    synthesizer.batch_voice_convert(
-        original_audios_folder=AUDIOS,  # convert from this
-        voices_folder=REFERENCE_VOICES,  # to this
-        output_dir="vc_results",
-        n_random=2
-    )
-
-    # Example 4: TTS with multiple voices and exaggerations
-    synthesizer.batch_synthesize(
-        text=text,
-        voice_folder_path=REFERENCE_VOICES,
-        exaggeration_range=(0.3, 1.1, 0.1),
-        output_dir="batch_results",
-        apply_watermark=False,
-    )
