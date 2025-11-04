@@ -59,7 +59,7 @@ setup(
     description='',
     entry_points={
         'mycroft.plugin.tts': 'ovos-tts-plugin-chatterbox-onnx = chatterbox_onnx.opm:ChatterboxTTSPlugin',
-        'opm.transformer.tts': 'ovos-tts-transformer-chatterbox=chatterbox_onnx.opm:ChatterboxTTSTransformer',
+        'opm.transformer.tts': 'ovos-tts-transformer-chatterbox-onnx=chatterbox_onnx.opm:ChatterboxTTSTransformer',
         'console_scripts': [
             'chatterbox_bulk_vc=chatterbox_onnx.scripts:bulk_vc',
             'chatterbox_bulk_tts=chatterbox_onnx.scripts:bulk_tts'
