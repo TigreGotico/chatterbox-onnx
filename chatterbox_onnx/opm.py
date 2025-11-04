@@ -1,6 +1,7 @@
 import os.path
-
+from typing import Tuple, Dict, Any
 from ovos_plugin_manager.templates.tts import TTS
+from ovos_plugin_manager.templates.transformers import TTSTransformer
 
 from chatterbox_onnx import ChatterboxOnnx
 
@@ -35,6 +36,27 @@ class ChatterboxTTSPlugin(TTS):
                                output_file_name=wav_file,
                                apply_watermark=False)
         return wav_file, None
+
+
+
+
+class ChatterboxTTSTransformer(TTSTransformer):
+    """ runs after TTS stage but before playback"""
+
+    def __init__(self, name="ovos-tts-transformer-chatterbox", priority=50, config=None):
+        super().__init__(name, priority, config)
+        self.engine: ChatterboxOnnx = ChatterboxOnnx()
+        self.voice = self.config["reference_voice"]
+
+    def transform(self, wav_file: str, context: dict = None) -> Tuple[str, Dict[str, Any]]:
+        """
+        Optionally transform passed wav_file and return path to transformed file
+        :param wav_file: path to wav file generated in TTS stage
+        :returns: path to transformed wav file for playback
+        """
+        outpath = wav_file.replace(".wav", "") + "_vc.wav"
+        self.engine.voice_convert(wav_file, self.voice, outpath)
+        return outpath, context
 
 
 if __name__ == "__main__":
