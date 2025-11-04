@@ -46,6 +46,8 @@ class ChatterboxTTSTransformer(TTSTransformer):
     def __init__(self, name="ovos-tts-transformer-chatterbox", priority=50, config=None):
         super().__init__(name, priority, config)
         self.engine: ChatterboxOnnx = ChatterboxOnnx()
+        if "reference_voice" not in self.config:
+            raise ValueError("Configuration must include 'reference_voice' key with path to reference WAV file")
         self.voice = self.config["reference_voice"]
 
     def transform(self, wav_file: str, context: dict = None) -> Tuple[str, Dict[str, Any]]:
