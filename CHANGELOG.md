@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.0a1) (2025-11-04)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.1.0a1...0.2.0a1)
+
+**Merged pull requests:**
+
+- feat: ovos plugin [\#7](https://github.com/TigreGotico/chatterbox-onnx/pull/7) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.1.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.1.0a1) (2025-10-30)
 
 [Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/V0.0.1...0.1.0a1)
