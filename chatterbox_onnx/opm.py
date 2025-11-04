@@ -50,7 +50,7 @@ class ChatterboxTTSTransformer(TTSTransformer):
             raise ValueError("Configuration must include 'reference_voice' key with path to reference WAV file")
         self.voice = self.config["reference_voice"]
 
-    def transform(self, wav_file: str, context: dict = None) -> Tuple[str, Dict[str, Any]]:
+    def transform(self, wav_file: str, context: dict | None = None) -> Tuple[str, Dict[str, Any]]:
         """
         Optionally transform passed wav_file and return path to transformed file
         :param wav_file: path to wav file generated in TTS stage
