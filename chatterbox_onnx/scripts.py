@@ -94,8 +94,8 @@ def bulk_vc(output_path: str, audios_path: str, voices_path: str, n_random: int)
     "--exaggeration-range",
     nargs=3,  # Requires exactly 3 arguments (start, stop, step)
     type=float,
-    default=(0.3, 1.1, 0.1),
-    help="Range (start stop step) for voice style exaggeration. Example: '0.3 1.1 0.1'.",
+    default=(0.3, 1.0, 0.1),
+    help="Range (start stop step) for voice style exaggeration. Example: '0.3 1.0 0.1'.",
     show_default=True,
 )
 def bulk_tts(text: str, output_path: str, voices_path: str, exaggeration_range: tuple[float, float, float]):

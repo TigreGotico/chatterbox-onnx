@@ -1,6 +1,7 @@
 import os
 import random
 
+import glob
 import librosa
 import numpy as np
 import onnxruntime
@@ -384,7 +385,6 @@ class ChatterboxOnnx:
         os.makedirs(output_dir, exist_ok=True)
 
         # Gather reference and source voices
-        import glob
         src_files = glob.glob(os.path.join(original_audios_folder, '**', '*.wav'), recursive=True)
         ref_files = glob.glob(os.path.join(voices_folder, '**', '*.wav'), recursive=True)
 
@@ -487,15 +487,7 @@ class ChatterboxOnnx:
         print(f"Testing exaggeration values: {exaggeration_values}")
 
         # 2. Find all WAV files
-        try:
-            voice_files = [
-                os.path.join(voice_folder_path, f)
-                for f in os.listdir(voice_folder_path)
-                if f.lower().endswith('.wav')
-            ]
-        except FileNotFoundError:
-            print(f"Error: Voice folder path not found: '{voice_folder_path}'. Aborting batch.")
-            return
+        voice_files = glob.glob(os.path.join(voice_folder_path, '**', '*.wav'), recursive=True)
 
         if not voice_files:
             print(f"Error: No .wav files found in '{voice_folder_path}'. Aborting batch.")

@@ -1,12 +1,32 @@
 # Changelog
 
-## [0.0.1a2](https://github.com/TigreGotico/chatterbox-onnx/tree/0.0.1a2) (2025-10-30)
+## [0.2.1a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.1a1) (2025-11-06)
 
-[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/8a78e09890235bd40324f44d4c33dce3c27d964d...0.0.1a2)
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.0a1...0.2.1a1)
 
 **Merged pull requests:**
 
-- Refactor voice conversion and embedding methods [\#1](https://github.com/TigreGotico/chatterbox-onnx/pull/1) ([JarbasAl](https://github.com/JarbasAl))
+- fix: missing dependency [\#9](https://github.com/TigreGotico/chatterbox-onnx/pull/9) ([JarbasAl](https://github.com/JarbasAl))
+
+## [0.2.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.0a1) (2025-11-04)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.1.0a1...0.2.0a1)
+
+**Merged pull requests:**
+
+- feat: ovos plugin [\#7](https://github.com/TigreGotico/chatterbox-onnx/pull/7) ([JarbasAl](https://github.com/JarbasAl))
+
+## [0.1.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.1.0a1) (2025-10-30)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/V0.0.1...0.1.0a1)
+
+**Merged pull requests:**
+
+- feat: native ovos plugin [\#5](https://github.com/TigreGotico/chatterbox-onnx/pull/5) ([JarbasAl](https://github.com/JarbasAl))
+
+## [V0.0.1](https://github.com/TigreGotico/chatterbox-onnx/tree/V0.0.1) (2025-10-30)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.0.1...V0.0.1)
 
 
 
