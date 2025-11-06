@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.1a1) (2025-11-06)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.0a1...0.2.1a1)
+
+**Merged pull requests:**
+
+- fix: missing dependency [\#9](https://github.com/TigreGotico/chatterbox-onnx/pull/9) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.2.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.0a1) (2025-11-04)
 
 [Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.1.0a1...0.2.0a1)
