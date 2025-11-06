@@ -4,3 +4,4 @@ onnxruntime
 soundfile
 huggingface_hub
 click
+tokenizers
