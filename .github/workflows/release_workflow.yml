@@ -23,7 +23,7 @@ jobs:
     needs: publish_alpha
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2v4
+      - uses: actions/checkout@v2
       - name: Send message to Matrix bots channel
         id: matrix-chat-message
         uses: fadenb/matrix-chat-message@v0.0.6
