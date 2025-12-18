@@ -1,32 +1,16 @@
 # Changelog
 
-## [0.2.1a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.1a1) (2025-11-06)
+## [0.2.2a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.2a1) (2025-12-18)
 
-[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.0a1...0.2.1a1)
-
-**Merged pull requests:**
-
-- fix: missing dependency [\#9](https://github.com/TigreGotico/chatterbox-onnx/pull/9) ([JarbasAl](https://github.com/JarbasAl))
-
-## [0.2.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.0a1) (2025-11-04)
-
-[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.1.0a1...0.2.0a1)
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/V0.2.1...0.2.2a1)
 
 **Merged pull requests:**
 
-- feat: ovos plugin [\#7](https://github.com/TigreGotico/chatterbox-onnx/pull/7) ([JarbasAl](https://github.com/JarbasAl))
+- chore: Configure Renovate [\#11](https://github.com/TigreGotico/chatterbox-onnx/pull/11) ([renovate[bot]](https://github.com/apps/renovate))
 
-## [0.1.0a1](https://github.com/TigreGotico/chatterbox-onnx/tree/0.1.0a1) (2025-10-30)
+## [V0.2.1](https://github.com/TigreGotico/chatterbox-onnx/tree/V0.2.1) (2025-11-06)
 
-[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/V0.0.1...0.1.0a1)
-
-**Merged pull requests:**
-
-- feat: native ovos plugin [\#5](https://github.com/TigreGotico/chatterbox-onnx/pull/5) ([JarbasAl](https://github.com/JarbasAl))
-
-## [V0.0.1](https://github.com/TigreGotico/chatterbox-onnx/tree/V0.0.1) (2025-10-30)
-
-[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.0.1...V0.0.1)
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.1...V0.2.1)
 
 
 
