@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2a3](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.2a3) (2025-12-19)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.2a2...0.2.2a3)
+
+**Merged pull requests:**
+
+- chore\(deps\): update actions/setup-python action to v6 [\#17](https://github.com/TigreGotico/chatterbox-onnx/pull/17) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [0.2.2a2](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.2a2) (2025-12-19)
 
 [Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.2a1...0.2.2a2)
