@@ -133,3 +133,7 @@ The pipeline comprises four key ONNX components:
 2.  **`embed_tokens.onnx`**: Converts text tokens into embeddings, applying the `exaggeration` feature.
 3.  **`language_model[_q4].onnx`**: The core LLM (Llama-based) that performs auto-regressive generation of speech tokens, conditioned on text and speaker embeddings.
 4.  **`conditional_decoder.onnx`**: The final neural vocoder that converts the sequence of generated speech tokens back into a high-fidelity waveform.
+
+## Credits & Funding
+
+Developed by [TigreGotico](https://tigregotico.pt) for [OpenVoiceOS](https://openvoiceos.org), funded by the [NGI0 Commons Fund](https://nlnet.nl/commonsfund/) — a fund established by [NLnet](https://nlnet.nl) with financial support from the European Commission's [Next Generation Internet](https://ngi.eu) programme (grant agreement No 101135429).
