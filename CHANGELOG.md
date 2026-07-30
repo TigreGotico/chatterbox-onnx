@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2a6](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.2a6) (2026-07-30)
+
+[Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.2a3...0.2.2a6)
+
+**Merged pull requests:**
+
+- docs: rewrite README in Simplified Technical English [\#24](https://github.com/TigreGotico/chatterbox-onnx/pull/24) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.2.2a3](https://github.com/TigreGotico/chatterbox-onnx/tree/0.2.2a3) (2025-12-19)
 
 [Full Changelog](https://github.com/TigreGotico/chatterbox-onnx/compare/0.2.2a2...0.2.2a3)
