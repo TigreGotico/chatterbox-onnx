@@ -1,85 +1,76 @@
-# 🤖 chatterbox-onnx: Standalone ONNX-Only Speech Synthesis
+# chatterbox-onnx
 
-**`chatterbox-onnx`** is a **single-file, dependency-minimal Python port** of the Chatterbox speech generation model. It leverages **ONNX Runtime** for all inference, eliminating the need for PyTorch or other complex deep learning frameworks for deployment.
+`chatterbox-onnx` is a single-file, dependency-minimal Python port of the Chatterbox speech generation model. It runs inference through ONNX Runtime, so it does not need PyTorch or other deep learning frameworks.
 
-This solution provides high-quality **Text-to-Speech (TTS)** and **Voice Conversion (VC)** capabilities with minimal setup.
+The package provides text-to-speech (TTS) with voice cloning and voice conversion (VC).
 
-## ✨ Features
+## Features
 
-  * **Single File Portability**: The entire core logic is contained within one Python file/class (`ChatterboxOnnx`).
-  * **ONNX-Only Inference**: Requires only `onnxruntime` and essential utility libraries (like `librosa` for audio processing).
-  * **Text-to-Speech (TTS)**: Generate speech from text, conditioned on a reference voice (voice cloning).
-  * **Voice Conversion (VC)**: Convert one person's speaking voice (source) into another person's voice (target reference).
-  * **Quantized Model Option**: Uses the **Q4 quantized Language Model** (`language_model_q4.onnx`) by default, reducing the LLM component size from 2GB to 350MB for faster loading and lower memory usage.
-  * **Batch Processing**: Built-in methods for synthesizing or converting audio across multiple reference voices and configuration settings.
-  * **Caching**: Models are automatically downloaded and cached from the Hugging Face Hub into a local directory (`~/.cache/chatterbox_onnx` by default).
+- **Single-file portability**: the core logic lives in one class, `ChatterboxOnnx`.
+- **ONNX-only inference**: needs only `onnxruntime` and a few utility libraries, such as `librosa` for audio processing.
+- **Text-to-speech (TTS)**: generate speech from text, conditioned on a reference voice.
+- **Voice conversion (VC)**: convert a source speaker's voice into a target voice.
+- **Quantized model option**: uses the Q4 quantized language model (`language_model_q4.onnx`) by default, which reduces the LLM component from 2 GB to 350 MB and lowers load time and memory use.
+- **Batch processing**: built-in methods synthesize or convert audio across multiple reference voices and configuration settings.
+- **Caching**: models download once from the Hugging Face Hub and cache in a local directory (`~/.cache/chatterbox_onnx` by default).
 
------
-
-## 💻 Prerequisites
-
-To use this file, ensure you have the required Python packages installed.
+## Install
 
 ```bash
 pip install onnxruntime librosa numpy soundfile tqdm tokenizers huggingface_hub
 ```
 
-**Note on Watermarking (Optional):**
-The `apply_watermark=True` feature requires the separate installation of the `resemble-perth` library:
+The `apply_watermark=True` option needs the separate `resemble-perth` library.
 
 ```bash
 pip install resemble-perth
 ```
 
------
+## Usage
 
-## 🛠️ Usage
+Copy the `ChatterboxOnnx` class and the `RepetitionPenaltyLogitsProcessor` utility class into your project. When you first initialize `ChatterboxOnnx`, it downloads and caches all needed ONNX model files from the Hugging Face Hub.
 
-Simply copy the `ChatterboxOnnx` class and the `RepetitionPenaltyLogitsProcessor` utility class into your project. The first time you initialize the `ChatterboxOnnx` class, it will automatically download and cache all necessary ONNX model files from the Hugging Face Hub.
+### 1. Initialization
 
-### 1\. Initialization
-
-Create an instance of the synthesizer. Use `quantized=False` to use the full-precision Language Model (larger file size, potentially higher quality).
+Create an instance of the synthesizer. Set `quantized=False` to use the full-precision language model. This gives a larger file size and, in some cases, higher quality.
 
 ```python
 from chatterbox_onnx import ChatterboxOnnx
 
-# Initializes the synthesizer. Models will be cached in ~/.cache/chatterbox_onnx/
+# Initializes the synthesizer. Models are cached in ~/.cache/chatterbox_onnx/
 # Uses the smaller, quantized LLM by default.
-synthesizer = ChatterboxOnnx(quantized=True) 
+synthesizer = ChatterboxOnnx(quantized=True)
 ```
 
-### 2\. Text-to-Speech (TTS)
+### 2. Text-to-speech (TTS)
 
-Generate audio from text by cloning a voice provided via a reference WAV file. If `target_voice_path` is `None`, a default reference audio is downloaded and used.
+Generate audio from text by cloning a voice from a reference WAV file. If `target_voice_path` is `None`, the synthesizer downloads and uses a default reference audio.
 
 | Parameter | Description |
 | :--- | :--- |
 | `text` | The input text to synthesize. |
-| `target_voice_path` | Path to a WAV file of the target voice. **(Optional)** |
-| `exaggeration` | Controls expressiveness (0.0 to 1.0). Default is 0.5. |
+| `target_voice_path` | Path to a WAV file of the target voice (optional). |
+| `exaggeration` | Controls expressiveness, from 0.0 to 1.0. Default is 0.5. |
 | `output_file_name` | The path to save the generated WAV file. |
 
 ```python
 synthesizer.synthesize(
     text="The quick brown fox jumps over the lazy dog.",
-    target_voice_path="path/to/your/reference_voice.wav", 
+    target_voice_path="path/to/your/reference_voice.wav",
     exaggeration=0.7,
     output_file_name="chatterbox_tts_output.wav",
     apply_watermark=False
 )
 ```
 
------
+### 3. Voice conversion (VC)
 
-### 3\. Voice Conversion (VC)
-
-Convert the speech style and identity of a **source audio** file to match that of a **target voice reference**.
+Convert the speech style and identity of a source audio file to match a target voice reference.
 
 | Parameter | Description |
 | :--- | :--- |
-| `source_audio_path` | Path to the audio file containing the speech you want to convert. |
-| `target_voice_path` | Path to the audio file of the voice identity you want to clone. |
+| `source_audio_path` | Path to the audio file with the speech to convert. |
+| `target_voice_path` | Path to the audio file of the voice identity to clone. |
 | `output_file_name` | The path to save the converted WAV file. |
 
 ```python
@@ -90,46 +81,50 @@ synthesizer.voice_convert(
 )
 ```
 
------
+### 4. Batch processing (TTS and VC)
 
-### 4\. Batch Processing (TTS and VC)
+#### Batch TTS example
 
-#### Batch TTS Example
-
-Generate the same text across all WAV files found in a specified folder, testing a range of `exaggeration` values.
+Generate the same text across all WAV files in a folder of reference voices, and test a range of `exaggeration` values.
 
 ```python
 synthesizer.batch_synthesize(
     text="This is a test of the batch synthesis function.",
     voice_folder_path="path/to/folder_of_reference_voices",
     # (start, stop, step). Tests exaggeration values 0.3, 0.4, 0.5... 1.1.
-    exaggeration_range=(0.3, 1.1, 0.1), 
+    exaggeration_range=(0.3, 1.1, 0.1),
     output_dir="batch_tts_results",
 )
 ```
 
-#### Batch VC Example
+#### Batch VC example
 
 Convert a set of source audios using a set of reference voices.
 
 ```python
 synthesizer.batch_voice_convert(
-    original_audios_folder="path/to/source_audios", 
-    voices_folder="path/to/reference_voices",  
+    original_audios_folder="path/to/source_audios",
+    voices_folder="path/to/reference_voices",
     output_dir="batch_vc_results",
     n_random=2 # For each reference voice, convert 2 random source audios
 )
 ```
 
------
+## OpenVoiceOS plugin
 
-## 📚 Technical Details
+The package also registers as an [OpenVoiceOS](https://github.com/OpenVoiceOS) TTS plugin, through the `ovos-tts-plugin-chatterbox-onnx` entry point, and as a TTS transformer that voice-converts synthesized audio, through the `ovos-tts-transformer-chatterbox-onnx` entry point. Both implement the templates from [OpenVoiceOS/ovos-plugin-manager](https://github.com/OpenVoiceOS/ovos-plugin-manager).
 
-The full set of models is sourced from the Hugging Face Hub: **[onnx-community/chatterbox-ONNX](https://huggingface.co/onnx-community/chatterbox-ONNX)**.
+## Technical details
 
-The pipeline comprises four key ONNX components:
+The full set of models comes from the Hugging Face Hub repository [onnx-community/chatterbox-ONNX](https://huggingface.co/onnx-community/chatterbox-ONNX).
 
-1.  **`speech_encoder.onnx`**: Extracts speaker embeddings and speech tokens from a reference audio.
-2.  **`embed_tokens.onnx`**: Converts text tokens into embeddings, applying the `exaggeration` feature.
-3.  **`language_model[_q4].onnx`**: The core LLM (Llama-based) that performs auto-regressive generation of speech tokens, conditioned on text and speaker embeddings.
-4.  **`conditional_decoder.onnx`**: The final neural vocoder that converts the sequence of generated speech tokens back into a high-fidelity waveform.
+The pipeline has four ONNX components:
+
+1. `speech_encoder.onnx`: extracts speaker embeddings and speech tokens from a reference audio.
+2. `embed_tokens.onnx`: converts text tokens into embeddings and applies the `exaggeration` feature.
+3. `language_model[_q4].onnx`: the core LLM (Llama-based) that auto-regressively generates speech tokens, conditioned on text and speaker embeddings.
+4. `conditional_decoder.onnx`: the vocoder that converts the sequence of generated speech tokens into a waveform.
+
+## License
+
+MIT
